@@ -55,5 +55,5 @@ jobs:
       uses: azure/webapps-deploy@v3
       with:
         app-name: 'prep-web-lb'
-        publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_FB6FA9B95665471DB6F3CB1E8A5566F2 }}
+        publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_B960D286554B4F1498E9574FEF49728B }}
         package: .
