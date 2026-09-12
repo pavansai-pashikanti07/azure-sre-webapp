@@ -1,27 +1,56 @@
-name: Build and Test Python WebApp
+name: CI-CD Pipeline - Build, Test & Deploy to Azure Web App
 
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
-  build:
+  build_and_test:
+    name: 🏗️ Build & Test
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v4
-    
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
     - name: Set up Python 3.12
       uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-        
-    - name: Install dependencies
+
+    - name: Install Dependencies
       run: |
         python -m pip install --upgrade pip
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        
-    - name: Smoke test application load
+        pip install -r requirements.txt
+
+    - name: Smoke Test Application Load
       run: |
-        python -c "import app; print('App imported successfully!')"
+        python -c "import app; print('✅ Flask App initialized successfully!')"
+
+    - name: Upload Artifact for Deployment
+      uses: actions/upload-artifact@v4
+      with:
+        name: webapp-package
+        path: |
+          .
+          !.git
+          !.github
+
+  deploy_to_azure:
+    name: 🚀 Deploy to Azure Web App
+    needs: build_and_test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Download Build Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: webapp-package
+
+    - name: Deploy to Azure Web App (PaaS)
+      uses: azure/webapps-deploy@v3
+      with:
+        app-name: 'first-web-app'
+        publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_FB6FA9B95665471DB6F3CB1E8A5566F2 }}
+        package: .
