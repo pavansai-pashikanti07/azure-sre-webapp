@@ -54,6 +54,6 @@ jobs:
     - name: Deploy to Azure Web App (PaaS)
       uses: azure/webapps-deploy@v3
       with:
-        app-name: 'prep-web-lb'
-        publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_B960D286554B4F1498E9574FEF49728B }}
+        app-name: 'app-service'
+        publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_D943CA4EA8B347D69EC40EF4C4C7034D }}
         package: .
