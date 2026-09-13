@@ -220,6 +220,17 @@ HTML_TEMPLATE = """
                 <div class="card-label">Uptime Since Startup</div>
                 <div class="card-value">{{ uptime }}</div>
             </div>
+            <div class="card" style="grid-column: 1 / -1; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.07);">
+                <div class="card-label" style="color: #34d399; display: flex; align-items: center; gap: 0.5rem;">
+                    <span>🔐</span> Azure Key Vault Injected Secret
+                </div>
+                <div class="card-value" style="color: #6ee7b7; font-size: 1.1rem; word-break: break-all;">
+                    {{ kv_secret }}
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">
+                    Status: <span style="color: {{ kv_status_color }}; font-weight: 600;">{{ kv_status }}</span>
+                </div>
+            </div>
         </div>
 
         <div class="endpoints">
@@ -249,13 +260,32 @@ def home():
     delta = now - START_TIME
     uptime = f"{int(delta.total_seconds())}s"
     
+    # Check for Key Vault injected secret (supports 'test', 'DATABASE_URL', 'TEST_SECRET', 'MONGO_URI')
+    raw_secret = os.getenv("test") or os.getenv("DATABASE_URL") or os.getenv("TEST_SECRET") or os.getenv("MONGO_URI") or os.getenv("MY_DB_SECRET")
+    
+    if not raw_secret:
+        kv_secret = "❌ No Secret Environment Variable Found"
+        kv_status = "App Setting ('test' or 'DATABASE_URL') not set in App Service"
+        kv_status_color = "#ef4444"
+    elif raw_secret.startswith("@Microsoft.KeyVault"):
+        kv_secret = raw_secret
+        kv_status = "⚠️ Key Vault Reference syntax present but unresolved by App Service (verify Managed Identity & RBAC)"
+        kv_status_color = "#f59e0b"
+    else:
+        kv_secret = raw_secret
+        kv_status = "✅ Resolved! Plain-text successfully injected by Azure Key Vault Reference"
+        kv_status_color = "#10b981"
+
     return render_template_string(
         HTML_TEMPLATE,
         app_name=app_name,
         slot_name=slot_name,
         hostname=hostname,
         python_version=python_version,
-        uptime=uptime
+        uptime=uptime,
+        kv_secret=kv_secret,
+        kv_status=kv_status,
+        kv_status_color=kv_status_color
     )
 
 @app.route('/healthz')
@@ -271,13 +301,16 @@ def health_check():
 @app.route('/api/info')
 def api_info():
     """System information endpoint"""
+    raw_secret = os.getenv("test") or os.getenv("DATABASE_URL") or os.getenv("TEST_SECRET") or os.getenv("MONGO_URI")
     return jsonify({
         "app_name": os.getenv("WEBSITE_SITE_NAME", "azure-sre-webapp-local"),
         "slot_name": os.getenv("SLOT_NAME", os.getenv("APP_ENV", "Production Slot")),
         "hostname": socket.gethostname(),
         "instance_id": os.getenv("WEBSITE_INSTANCE_ID", "local-dev-instance"),
         "python_version": platform.python_version(),
-        "requests_handled": REQUEST_COUNT
+        "requests_handled": REQUEST_COUNT,
+        "key_vault_secret_injected": raw_secret is not None and not raw_secret.startswith("@Microsoft.KeyVault"),
+        "key_vault_secret_value": raw_secret
     }), 200
 
 if __name__ == '__main__':
